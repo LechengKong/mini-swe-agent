@@ -5,8 +5,10 @@
 
 import concurrent.futures
 import json
+import os
 import random
 import re
+import subprocess
 import threading
 import time
 import traceback
@@ -59,6 +61,7 @@ DATASET_MAPPING = {
     "smith": "SWE-bench/SWE-smith",
     "_test": "klieret/swe-bench-dummy-test-dataset",
     "rebench": "nebius/SWE-rebench",
+    "pro": "ScaleAI/SWE-bench_Pro",
 }
 
 app = typer.Typer(rich_markup_mode="rich", add_completion=False)
@@ -82,6 +85,10 @@ class ProgressTrackingAgent(DefaultAgent):
 def get_swebench_docker_image_name(instance: dict) -> str:
     """Get the image name for a SWEBench instance."""
     image_name = instance.get("image_name", None) or instance.get("docker_image", None)
+    docker_tag = instance.get('dockerhub_tag', None)
+    if docker_tag is not None:
+        iid = instance["instance_id"]
+        image_name = f"docker.io/jefzda/sweap-images:{docker_tag[:128]}"
     if image_name is None:
         # Docker doesn't allow double underscore, so we replace them with a magic token
         iid = instance["instance_id"]
@@ -189,6 +196,23 @@ def process_instance(
             logger.info(f"Saved trajectory to '{traj_path}'")
         update_preds_file(output_dir / "preds.json", instance_id, model.config.model_name, result)
         progress_manager.on_instance_end(instance_id, exit_status)
+
+
+def prepull_images(instances: list[dict], workers: int = 4) -> None:
+    """Pull all unique docker images for the given instances in parallel."""
+    executable = os.getenv("MSWEA_DOCKER_EXECUTABLE", "docker")
+    images = list({get_swebench_docker_image_name(i) for i in instances})
+    logger.info(f"Pre-pulling {len(images)} unique images with {workers} workers...")
+
+    def pull(image: str) -> None:
+        result = subprocess.run([executable, "pull", image], capture_output=True, text=True)
+        if result.returncode == 0:
+            logger.info(f"Pulled {image}")
+        else:
+            logger.warning(f"Failed to pull {image}: {result.stderr.strip()}")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+        list(executor.map(pull, images))
 
 
 def filter_instances(

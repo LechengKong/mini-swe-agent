@@ -33,7 +33,7 @@ class DockerEnvironmentConfig(BaseModel):
     """
     container_timeout: str = "2h"
     """Max duration to keep container running. Uses the same format as the sleep command."""
-    pull_timeout: int = 120
+    pull_timeout: int = 1200
     """Timeout in seconds for pulling images."""
     interpreter: list[str] = ["bash", "-lc"]
     """Interpreter to use to execute commands. Default is ["bash", "-lc"].
@@ -82,10 +82,14 @@ class DockerEnvironment:
             container_name,
             "-w",
             self.config.cwd,
+            "--entrypoint",
+            "/bin/bash",
             *self.config.run_args,
             self.config.image,
-            "sleep",
-            self.config.container_timeout,
+            "-c",
+            f"sleep {self.config.container_timeout}",
+            # "sleep",
+            # self.config.container_timeout,
         ]
         self.logger.debug(f"Starting container with command: {shlex.join(cmd)}")
         result = subprocess.run(
