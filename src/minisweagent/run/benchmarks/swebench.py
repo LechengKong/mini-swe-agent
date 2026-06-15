@@ -154,6 +154,10 @@ def process_instance(
     (instance_dir / f"{instance_id}.traj.json").unlink(missing_ok=True)
     model = get_model(config=config.get("model", {}))
     task = instance["problem_statement"]
+    extra_task_vars = {
+        "requirements": str(instance.get("requirements") or "").strip(),
+        "interface": str(instance.get("interface") or "").strip(),
+    }
 
     progress_manager.on_instance_start(instance_id)
     progress_manager.update_instance_status(instance_id, "Pulling/starting environment")
@@ -172,7 +176,7 @@ def process_instance(
             instance_id=instance_id,
             **config.get("agent", {}),
         )
-        info = agent.run(task)
+        info = agent.run(task, **extra_task_vars)
         exit_status = info.get("exit_status")
         result = info.get("submission")
     except Exception as e:

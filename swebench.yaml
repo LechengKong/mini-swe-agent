@@ -6,6 +6,29 @@ agent:
     Consider the following PR description:
     {{task}}
     </pr_description>
+    {% if requirements is defined and requirements %}
+    <spec_requirements>
+    The following is the AUTHORITATIVE behavioral specification for this task.
+    It enumerates every concrete behavior, return shape, error code, and name
+    the post-fix tests will exercise. Treat any conflict between the PR
+    description and this block as a win for this block.
+
+    {{requirements}}
+    </spec_requirements>
+    {% endif %}
+    {% if interface is defined and interface %}
+    <interface>
+    The following is the AUTHORITATIVE list of new/modified public symbols and
+    the file paths that must contain them. Every entry is a hard requirement of
+    the grading test file.
+
+    {{interface}}
+
+    Before you start coding, OPEN every file named above to understand the
+    existing structure. Patches that miss a listed file are a common cause of
+    failure.
+    </interface>
+    {% endif %}
 
     <instructions>
     # Task Instructions
